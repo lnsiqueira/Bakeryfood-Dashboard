@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Vendas - Dona Deola</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f9f9f9;
+            color: #333;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #FF6B35;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #777;
+            font-size: 1.1rem;
+        }
+        
+        .selection-screen {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto 40px;
+        }
+        
+        .selection-screen h2 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 1.1rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: #FF6B35;
+            outline: none;
+        }
+        
+        .date-inputs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .btn-primary {
+            background-color: #FF6B35;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .btn-primary:hover {
+            background-color: #FF8E53;
+        }
+        
+        .btn-primary:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .dashboard {
+            display: none;
+        }
+        
+        .back-btn {
+            background-color: #f0f0f0;
+            color: #555;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .back-btn:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .totals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .total-box {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            text-align: center;
+            border-top: 5px solid #FF6B35;
+            transition: transform 0.3s ease;
+        }
+        
+        .total-box:hover {
+            transform: translateY(-5px);
+        }
+        
+        .filial-name {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .total-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #FF6B35;
+            margin: 15px 0;
+        }
+        
+        .total-label {
+            font-size: 1.1rem;
+            color: #555;
+            margin-top: 10px;
+        }
+        
+        .no-data {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            background-color: #fff3e0;
+            border-radius: 10px;
+            border: 2px dashed #FF8E53;
+        }
+        
+        .no-data i {
+            font-size: 3rem;
+            color: #FF6B35;
+            margin-bottom: 20px;
+        }
+        
+        .no-data h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .no-data p {
+            color: #666;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #FF6B35;
+            font-size: 1.1rem;
+        }
+        
+        .loading i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .api-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #FF6B35;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .api-info h4 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .api-info code {
+            background-color: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .chart-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 25px;
+            transition: transform 0.3s ease;
+        }
+        
+        .chart-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .chart-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .chart-title h2 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-left: 10px;
+        }
+        
+        .chart-title i {
+            color: #FF6B35;
+            font-size: 1.8rem;
+        }
+        
+        .chart-wrapper {
+            height: 350px;
+            width: 100%;
+            position: relative;
+        }
+        
+        .value-label {
+            background-color: rgba(255, 107, 53, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        
+        .cors-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .cors-warning h4 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        
+        .cors-warning ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        .color-palette {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .color-item {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+        
+        .orange-main { background-color: #FF6B35; }
+        .orange-light { background-color: #FF8E53; }
+        
+        @media (max-width: 992px) {
+            .totals-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .selection-screen {
+                padding: 25px;
+            }
+            
+            .date-inputs {
+                grid-template-columns: 1fr;
+            }
+            
+            .totals-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .total-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Tela de seleção de período -->
+    <div class="selection-screen" id="selectionScreen">
+        <h2>Selecionar Período e Unidade</h2>
+        
+        <div class="form-group">
+            <label for="unidade">Unidade</label>
+            <select id="unidade" class="form-control">
+                <option value="">Selecione uma unidade</option>
+                <option value="Lapa">Lapa</option>
+                <option value="Granja Viana">Granja Viana</option>
+                <option value="Einstein">Einstein</option>
+                <option value="Saude">Saúde</option>
+                <option value="Pompeia">Pompeia</option>
+                <option value="Higienopolis">Higienópolis</option>
+            </select>
+        </div>
+        
+        <div class="date-inputs">
+            <div class="form-group">
+                <label for="dataInicial">Data Inicial</label>
+                <input type="date" id="dataInicial" class="form-control" value="2025-12-15">
+            </div>
+            
+            <div class="form-group">
+                <label for="dataFinal">Data Final</label>
+                <input type="date" id="dataFinal" class="form-control" value="2025-12-15">
+            </div>
+        </div>
+        
+        <button id="btnCarregar" class="btn-primary">
+            <i class="fas fa-chart-bar"></i> Carregar Dashboard
+        </button>
+        
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            Carregando dados da API...
+        </div>
+        
+        <div class="cors-warning" id="corsWarning">
+            <h4><i class="fas fa-exclamation-triangle"></i> Atenção: Problema de CORS Detectado</h4>
+            <p>Para que a API funcione corretamente, você precisa:</p>
+            <ul>
+                <li><strong>Usar um servidor local</strong> (não abrir o arquivo diretamente no navegador)</li>
+                <li><strong>Instalar uma extensão de CORS</strong> no navegador (como CORS Unblock)</li>
+                <li><strong>Executar o navegador com CORS desabilitado</strong> (modo desenvolvedor)</li>
+            </ul>
+            <p><strong>Solução rápida:</strong> Instale a extensão "Live Server" no VS Code e clique em "Go Live".</p>
+        </div>
+        
+        <div class="api-info">
+            <h4>Informações da API:</h4>
+            <p><strong>URL:</strong> <code>https://webapi-sisfiscal-cqf7dxb8dkfye7ap.brazilsouth-01.azurewebsites.net/api/Nfce/listaByFilial</code></p>
+            <p><strong>Parâmetros:</strong> filialId e dataProcessamento (YYYY-MM-DD)</p>
+            <p><strong>Estrutura da resposta:</strong> { dados: [], resumo: { totalRegistros, totalValor, dataProcessamento, filialId } }</p>
+        </div>
+    </div>
+    
+    <!-- Dashboard (inicialmente oculto) -->
+    <div class="dashboard" id="dashboard">
+        <button class="back-btn" id="btnVoltar">
+            <i class="fas fa-arrow-left"></i> Voltar para Seleção
+        </button>
+        
+        <div class="header">
+            <h1>Dona Deola - Dashboard de Vendas</h1>
+            <p id="periodoSelecionado">Período: 15/12/2025 | Unidade: Lapa</p>
+        </div>
+        
+        <div id="dashboardContent">
+            <!-- Conteúdo será carregado dinamicamente -->
+        </div>
+        
+        <div class="footer">
+            <p>Dashboard de Vendas - Dona Deola | Dados carregados da API</p>
+            <p>Cores da marca:</p>
+            <div class="color-palette">
+                <div class="color-item orange-main" title="#FF6B35"></div>
+                <div class="color-item orange-light" title="#FF8E53"></div>
+            </div>
+            <p style="margin-top: 10px;">© 2025 Bakery Food - Todos os direitos reservados</p>
+        </div>
+    </div>
+    
+    <script>
+        // Mapeamento DE/PARA das filiais para a API
+        const filiaisMapping = {
+            "Lapa": "8urs76lF1QwjcNpi3CwD",
+            "Granja Viana": "1743445467349",
+            "Einstein": "1744827033140",
+            "Saude": "1743443888148",
+            "Pompeia": "1743026928977",
+            "Higienopolis": "1743445823763"
+        };
+        
+        // Variáveis globais
+        let dadosAcumulados = [];
+        
+        // Elementos DOM
+        const selectionScreen = document.getElementById('selectionScreen');
+        const dashboard = document.getElementById('dashboard');
+        const btnCarregar = document.getElementById('btnCarregar');
+        const btnVoltar = document.getElementById('btnVoltar');
+        const loading = document.getElementById('loading');
+        const dashboardContent = document.getElementById('dashboardContent');
+        const corsWarning = document.getElementById('corsWarning');
+        
+        // Elementos de entrada
+        const unidadeSelect = document.getElementById('unidade');
+        const dataInicial = document.getElementById('dataInicial');
+        const dataFinal = document.getElementById('dataFinal');
+        
+        // Verificar se está rodando localmente (file://)
+        function verificarCors() {
+            if (window.location.protocol === 'file:') {
+                corsWarning.style.display = 'block';
+                return false;
+            }
+            return true;
+        }
+        
+        // Formatar data para exibição
+        function formatarData(dataStr) {
+            const data = new Date(dataStr);
+            return data.toLocaleDateString('pt-BR');
+        }
+        
+        // Formatar data para API (YYYY-MM-DD)
+        function formatarDataParaAPI(dataStr) {
+            const data = new Date(dataStr);
+            return data.toISOString().split('T')[0];
+        }
+        
+        // Validar datas
+        function validarDatas() {
+            const dataIni = new Date(dataInicial.value);
+            const dataFim = new Date(dataFinal.value);
+            
+            if (dataIni > dataFim) {
+                alert('A data inicial não pode ser maior que a data final!');
+                return false;
+            }
+            
+            // Limitar a 7 dias para performance
+            const diffTime = Math.abs(dataFim - dataIni);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays > 7) {
+                alert('Para melhor performance, o período não pode ser maior que 7 dias!');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Obter ID da API para a filial selecionada
+        function getFilialIdParaAPI(nomeFilial) {
+            return filiaisMapping[nomeFilial] || null;
+        }
+        
+        // Buscar dados da API REAL para uma data específica
+        async function buscarDadosAPIReal(filialId, dataProcessamento) {
+            const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dataProcessamento=${dataProcessamento}`;
+            
+            console.log('Chamando API:', url);
+            
+            try {
+                // Usando mode: 'cors' e headers para tentar evitar problemas de CORS
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    // Timeout de 10 segundos
+                    signal: AbortSignal.timeout(10000)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                }
+                
+                const dados = await response.json();
+                console.log(`Dados recebidos para ${dataProcessamento}:`, dados);
+                return dados;
+                
+            } catch (error) {
+                console.error(`Erro na chamada da API para ${dataProcessamento}:`, error);
+                
+                // Verificar se é erro de CORS
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    throw new Error('Erro de CORS. É necessário executar este arquivo em um servidor local.');
+                }
+                
+                throw error;
+            }
+        }
+        
+        // Buscar dados para todas as datas do período
+        async function buscarDadosPeriodo(filialNome, dataInicio, dataFim) {
+            const filialId = getFilialIdParaAPI(filialNome);
+            
+            if (!filialId) {
+                throw new Error('ID da filial não encontrado no mapeamento');
+            }
+            
+            const dataIni = new Date(dataInicio);
+            const dataFimObj = new Date(dataFim);
+            dadosAcumulados = [];
+            
+            // Buscar dados para cada dia do período
+            let dataAtual = new Date(dataIni);
+            
+            while (dataAtual <= dataFimObj) {
+                const dataStr = dataAtual.toISOString().split('T')[0];
+                
+                try {
+                    const resultado = await buscarDadosAPIReal(filialId, dataStr);
+                    
+                    if (resultado && resultado.resumo) {
+                        dadosAcumulados.push({
+                            data: dataStr,
+                            resumo: resultado.resumo,
+                            temDados: resultado.resumo.totalRegistros > 0
+                        });
+                    } else {
+                        dadosAcumulados.push({
+                            data: dataStr,
+                            resumo: null,
+                            temDados: false
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error(`Erro ao buscar dados para ${dataStr}:`, error);
+                    dadosAcumulados.push({
+                        data: dataStr,
+                        resumo: null,
+                        temDados: false,
+                        erro: error.message
+                    });
+                }
+                
+                // Avançar para o próximo dia
+                dataAtual.setDate(dataAtual.getDate() + 1);
+                
+                // Pequena pausa para não sobrecarregar a API
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            return processarDadosAcumulados();
+        }
+        
+        // Processar dados acumulados
+        function processarDadosAcumulados() {
+            // Filtrar apenas dias com dados
+            const dadosComResumo = dadosAcumulados.filter(item => item.temDados);
+            const diasSemDados = dadosAcumulados.filter(item => !item.temDados);
+            
+            if (dadosComResumo.length === 0) {
+                return {
+                    temDados: false,
+                    mensagem: 'Não há dados disponíveis para o período selecionado.',
+                    diasSemDados: diasSemDados.length
+                };
+            }
+            
+            // Calcular totais
+            let totalGeralValor = 0;
+            let totalGeralRegistros = 0;
+            let dadosPorDia = [];
+            
+            dadosComResumo.forEach(item => {
+                totalGeralValor += item.resumo.totalValor;
+                totalGeralRegistros += item.resumo.totalRegistros;
+                
+                dadosPorDia.push({
+                    data: item.data,
+                    totalValor: item.resumo.totalValor,
+                    totalRegistros: item.resumo.totalRegistros,
+                    ticketMedio: item.resumo.totalValor / item.resumo.totalRegistros
+                });
+            });
+            
+            const ticketMedioGeral = totalGeralRegistros > 0 ? totalGeralValor / totalGeralRegistros : 0;
+            
+            return {
+                temDados: true,
+                totalGeralValor,
+                totalGeralRegistros,
+                ticketMedioGeral,
+                dadosPorDia,
+                diasComDados: dadosComResumo.length,
+                diasSemDados: diasSemDados.length,
+                periodoTotalDias: dadosAcumulados.length
+            };
+        }
+        
+        // Plugin para exibir valores fixos nas barras
+        const barValuePlugin = {
+            id: 'barValuePlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+                const meta = chart.getDatasetMeta(0);
+                
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillStyle = '#333';
+                
+                meta.data.forEach((bar, index) => {
+                    const value = data.datasets[0].data[index];
+                    
+                    // Só exibe valor se for maior que 0
+                    if (value > 0) {
+                        let formattedValue;
+                        
+                        // Formatação diferente para gráfico de valores vs clientes
+                        if (chart.canvas.id === 'vendasChart') {
+                            formattedValue = 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        } else {
+                            formattedValue = value.toLocaleString('pt-BR');
+                        }
+                        
+                        // Posição do texto acima da barra
+                        ctx.fillText(
+                            formattedValue, 
+                            bar.x, 
+                            bar.y - 8
+                        );
+                    }
+                });
+                
+                ctx.restore();
+            }
+        };
+        
+        // Criar dashboard com dados
+        function criarDashboard(dadosProcessados, filialNome, dataInicio, dataFim) {
+            let html = '';
+            
+            if (!dadosProcessados.temDados) {
+                html = `
+                    <div class="no-data">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>Sem informações disponíveis</h3>
+                        <p>${dadosProcessados.mensagem}</p>
+                        <p>Período: ${formatarData(dataInicio)} a ${formatarData(dataFim)}</p>
+                        <p>Unidade: ${filialNome}</p>
+                    </div>
+                `;
+            } else {
+                // Atualizar título do período
+                document.getElementById('periodoSelecionado').textContent = 
+                    `Período: ${formatarData(dataInicio)} a ${formatarData(dataFim)} | Unidade: ${filialNome}`;
+                
+                html = `
+                    <div class="totals-grid">
+                        <div class="total-box">
+                            <div class="filial-name">${filialNome}</div>
+                            <div class="total-value">R$ ${dadosProcessados.totalGeralValor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                            <div class="total-label">Valor Total do Período</div>
+                        </div>
+                        
+                        <div class="total-box">
+                            <div class="filial-name">Resumo do Período</div>
+                            <div class="total-value">${dadosProcessados.totalGeralRegistros.toLocaleString('pt-BR')}</div>
+                            <div class="total-label">Total de Vendas</div>
+                        </div>
+                        
+                        <div class="total-box">
+                            <div class="filial-name">Ticket Médio</div>
+                            <div class="total-value">R$ ${dadosProcessados.ticketMedioGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                            <div class="total-label">Por venda</div>
+                        </div>
+                    </div>
+                    
+                    <div class="totals-grid">
+                        <div class="total-box">
+                            <div class="filial-name">Dias com Dados</div>
+                            <div class="total-value" style="color: #4CAF50;">${dadosProcessados.diasComDados}</div>
+                            <div class="total-label">de ${dadosProcessados.periodoTotalDias} dias</div>
+                        </div>
+                        
+                        <div class="total-box">
+                            <div class="filial-name">Dias sem Dados</div>
+                            <div class="total-value" style="color: #F44336;">${dadosProcessados.diasSemDados}</div>
+                            <div class="total-label">de ${dadosProcessados.periodoTotalDias} dias</div>
+                        </div>
+                        
+                        <div class="total-box">
+                            <div class="filial-name">Período Analisado</div>
+                            <div class="total-value" style="color: #2196F3;">${dadosProcessados.periodoTotalDias}</div>
+                            <div class="total-label">dias</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Adicionar gráficos se houver dados por dia
+                if (dadosProcessados.dadosPorDia.length > 0) {
+                    html += criarGraficosHTML(dadosProcessados.dadosPorDia);
+                }
+            }
+            
+            dashboardContent.innerHTML = html;
+            
+            // Criar gráficos Chart.js se houver dados
+            if (dadosProcessados.temDados && dadosProcessados.dadosPorDia.length > 0) {
+                criarGraficosChartJS(dadosProcessados.dadosPorDia);
+            }
+        }
+        
+        // Criar HTML para gráficos
+        function criarGraficosHTML(dadosPorDia) {
+            return `
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <i class="fas fa-chart-bar"></i>
+                            <h2>Evolução de Vendas Diárias</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <div class="value-label">Valores em R$</div>
+                            <canvas id="vendasChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <i class="fas fa-users"></i>
+                            <h2>Evolução de Vendas Diárias</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <div class="value-label">Número de Vendas</div>
+                            <canvas id="clientesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Criar gráficos com Chart.js
+        function criarGraficosChartJS(dadosPorDia) {
+            // Formatar datas para exibição
+            const datas = dadosPorDia.map(item => {
+                const data = new Date(item.data);
+                return `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth()+1).toString().padStart(2, '0')}`;
+            });
+            
+            const valores = dadosPorDia.map(item => item.totalValor);
+            const vendas = dadosPorDia.map(item => item.totalRegistros);
+            
+            // Destruir gráficos existentes
+            if (window.vendasChart) window.vendasChart.destroy();
+            if (window.clientesChart) window.clientesChart.destroy();
+            
+            // Gráfico de valores
+            const ctxVendas = document.getElementById('vendasChart').getContext('2d');
+            window.vendasChart = new Chart(ctxVendas, {
+                type: 'bar',
+                plugins: [barValuePlugin],
+                data: {
+                    labels: datas,
+                    datasets: [{
+                        label: 'Valores (R$)',
+                        data: valores,
+                        backgroundColor: '#FF6B35',
+                        borderColor: '#FF8E53',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#333',
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#777',
+                                font: { size: 11 },
+                                callback: function(value) {
+                                    return 'R$ ' + value.toLocaleString('pt-BR');
+                                }
+                            },
+                            grid: { color: '#f0f0f0' }
+                        }
+                    },
+                    animation: { duration: 1000 }
+                }
+            });
+            
+            // Gráfico de número de vendas (clientes)
+            const ctxClientes = document.getElementById('clientesChart').getContext('2d');
+            window.clientesChart = new Chart(ctxClientes, {
+                type: 'bar',
+                plugins: [barValuePlugin],
+                data: {
+                    labels: datas,
+                    datasets: [{
+                        label: 'Número de Vendas',
+                        data: vendas,
+                        backgroundColor: '#FF8E53',
+                        borderColor: '#FF6B35',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#333',
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#777',
+                                font: { size: 11 },
+                                callback: function(value) {
+                                    return value.toLocaleString('pt-BR');
+                                }
+                            },
+                            grid: { color: '#f0f0f0' }
+                        }
+                    },
+                    animation: { duration: 1000 }
+                }
+            });
+        }
+        
+        // Carregar dashboard
+        async function carregarDashboard() {
+            // Verificar CORS
+            // if (!verificarCors()) {
+            //    return;
+            // }
+            
+            // Validar seleção
+            if (!unidadeSelect.value) {
+                alert('Por favor, selecione uma unidade!');
+                return;
+            }
+            
+            if (!validarDatas()) {
+                return;
+            }
+            
+            // Mostrar loading
+            loading.style.display = 'block';
+            btnCarregar.disabled = true;
+            
+            try {
+                // Buscar dados da API
+                const filialNome = unidadeSelect.value;
+                const dataInicio = formatarDataParaAPI(dataInicial.value);
+                const dataFim = formatarDataParaAPI(dataFinal.value);
+                
+                console.log(`Buscando dados para ${filialNome} de ${dataInicio} a ${dataFim}`);
+                
+                const dadosProcessados = await buscarDadosPeriodo(filialNome, dataInicio, dataFim);
+                
+                // Criar dashboard com os dados
+                criarDashboard(dadosProcessados, filialNome, dataInicio, dataFim);
+                
+                // Mostrar dashboard
+                selectionScreen.style.display = 'none';
+                dashboard.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                
+                // Mostrar mensagem de erro
+                dashboardContent.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Erro ao carregar dados</h3>
+                        <p>${error.message}</p>
+                        <p>Por favor, tente novamente.</p>
+                    </div>
+                `;
+                
+                selectionScreen.style.display = 'none';
+                dashboard.style.display = 'block';
+            } finally {
+                // Esconder loading
+                loading.style.display = 'none';
+                btnCarregar.disabled = false;
+            }
+        }
+        
+        // Voltar para tela de seleção
+        function voltarParaSelecao() {
+            dashboard.style.display = 'none';
+            selectionScreen.style.display = 'block';
+            dadosAcumulados = [];
+        }
+        
+        // Configurar data padrão como hoje
+        function configurarDatasPadrao() {
+            const hoje = new Date();
+            const hojeStr = hoje.toISOString().split('T')[0];
+            
+            dataInicial.value = hojeStr;
+            dataFinal.value = hojeStr;
+        }
+        
+        // Event Listeners
+        btnCarregar.addEventListener('click', carregarDashboard);
+        btnVoltar.addEventListener('click', voltarParaSelecao);
+        
+        // Configurar datas padrão ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            configurarDatasPadrao();
+            verificarCors();
+        });
+        
+        // Permitir carregar com Enter
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && selectionScreen.style.display !== 'none') {
+                carregarDashboard();
+            }
+        });
+    </script>
+</body>
+</html>

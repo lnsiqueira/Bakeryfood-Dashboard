@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Vendas - Dona Deola</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f9f9f9; color: #333; padding: 20px; max-width: 1200px; margin: 0 auto; }
+
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #FF6B35; padding-bottom: 15px; }
+        .header h1 { font-size: 2.2rem; }
+        .header p { color: #777; }
+
+        .selection-screen, .chart-card, .total-box {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,.08);
+        }
+
+        .selection-screen { padding: 30px; max-width: 700px; margin: auto; }
+        .form-group { margin-bottom: 20px; }
+        .form-control { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #FF6B35;
+            border: none;
+            color: #fff;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .selection-container {
+            max-width: 900px;
+            margin: auto;
+            margin-bottom: 40px;
+        }
+
+        .company-intro {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,.08);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .company-logo {
+            max-width: 160px;
+            margin-bottom: 15px;
+        }
+
+        .company-text {
+            font-size: 0.95rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .dashboard { display: none; }
+        .back-btn { margin-bottom: 20px; }
+
+        .totals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .total-box {
+            padding: 25px;
+            text-align: center;
+            border-top: 5px solid #FF6B35;
+        }
+
+        .filial-name { font-size: 1.2rem; font-weight: bold; }
+        .total-value { font-size: 2.2rem; color: #FF6B35; margin: 10px 0; }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .chart-card { padding: 25px; }
+        .chart-wrapper { height: 350px; }
+
+        .btn-primary {
+            position: relative;
+        }
+
+        .btn-primary.loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .btn-primary.loading::after {
+            content: '';
+            width: 22px;
+            height: 22px;
+            border: 3px solid rgba(255,255,255,0.4);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg) translate(-50%, -50%); }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="selection-container">
+
+    <!-- Bloco institucional -->
+    <div class="company-intro">
+        <img src="https://bakeryfood.com.br/Baker.gif"
+             alt="Bakery Food"
+             class="company-logo">
+
+        <p class="company-text">
+            A <strong>Bakery Food</strong> é referência em soluções para panificação,
+            confeitaria e food service, oferecendo produtos de alta qualidade,
+            tecnologia e inovação para o varejo alimentar.
+        </p>
+    </div>
+
+    <!-- Card de seleção -->
+    <div class="selection-screen" id="selectionScreen">
+        <h2>Selecionar Período</h2>
+
+        <div class="form-group">
+            <label>Unidade</label>
+            <select id="unidade" class="form-control">
+                <option value="">Selecione</option>
+                <option>Lapa</option>
+                <option>Granja Viana</option>
+                <option>Einstein</option>
+                <option>Saude</option>
+                <option>Pompeia</option>
+                <option>Higienopolis</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Data Inicial</label>
+            <input type="date" id="dataInicial" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label>Data Final</label>
+            <input type="date" id="dataFinal" class="form-control">
+        </div>
+
+        <button class="btn-primary" id="btnCarregar" onclick="carregarDashboard()">
+            Carregar Dashboard
+        </button>
+    </div>
+
+</div>
+
+
+<div class="dashboard" id="dashboard">
+    <button class="back-btn" onclick="voltar()">⬅ Voltar</button>
+
+    <div class="header">
+        <h1>Dona Deola</h1>
+        <p id="periodoSelecionado"></p>
+    </div>
+
+    <div id="dashboardContent"></div>
+</div>
+
+<script>
+const filiais = {
+    "Lapa": "8urs76lF1QwjcNpi3CwD",
+    "Granja Viana": "1743445467349",
+    "Einstein": "1744827033140",
+    "Saude": "1743443888148",
+    "Pompeia": "1743026928977",
+    "Higienopolis": "1743445823763"
+};
+
+let vendasChart, pagamentoChart;
+
+async function carregarDashboard() {
+
+    const btn = document.getElementById('btnCarregar');
+
+    const filialNome = unidade.value;
+    const filialId = filiais[filialNome];
+    const dtInicio = dataInicial.value;
+    const dtFim = dataFinal.value;
+
+    if (!filialId || !dtInicio || !dtFim) {
+        alert('Preencha todos os campos');
+        return;
+    }
+
+    try {
+        // 🔒 trava o botão
+        btn.classList.add('loading');
+        btn.innerText = 'Carregando...';
+
+        const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${dtInicio}&dtFim=${dtFim}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao buscar dados');
+
+        const dados = await response.json();
+
+        criarDashboard(dados, filialNome, dtInicio, dtFim);
+
+        selectionScreen.style.display = 'none';
+        dashboard.style.display = 'block';
+
+    } catch (e) {
+        alert('Erro ao carregar dashboard');
+        console.error(e);
+    } finally {
+        // 🔓 libera botão
+        btn.classList.remove('loading');
+        btn.innerText = 'Carregar Dashboard';
+    }
+}
+
+
+function criarDashboard(dados, filialNome, di, df) {
+
+    periodoSelecionado.innerText = `Período: ${di} a ${df} | Unidade: ${filialNome}`;
+
+    let html = `
+    <div class="totals-grid">
+        <div class="total-box">
+            <div class="filial-name">${filialNome}</div>
+            <div class="total-value">R$ ${dados.resumoGeral.totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+            <div>Total Geral</div>
+        </div>
+
+        <div class="total-box">
+            <div class="filial-name">Clientes</div>
+            <div class="total-value">${dados.resumoGeral.totalRegistros}</div>
+            <div>Total de Clientes</div>
+        </div>
+
+        <div class="total-box">
+            <div class="filial-name">Ticket Médio</div>
+            <div class="total-value">R$ ${dados.resumoGeral.ticketMedio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+            <div>Período</div>
+        </div>
+    </div>
+
+    <div class="charts-container">
+        <div class="chart-card">
+            <h3>Evolução das Vendas</h3>
+            <div class="chart-wrapper">
+                <canvas id="vendasChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Resumo por Tipo de Pagamento</h3>
+            <div class="chart-wrapper">
+                <canvas id="pagamentoChart"></canvas>
+            </div>
+        </div>
+    </div>
+    `;
+
+    dashboardContent.innerHTML = html;
+
+    criarGraficoVendas(dados.evolucaoDiaria);
+    criarGraficoPagamento(dados.resumoPorPagamento);
+}
+
+function criarGraficoVendas(dados) {
+
+    if (vendasChart) vendasChart.destroy();
+
+    vendasChart = new Chart(document.getElementById('vendasChart'), {
+        type: 'bar',
+        data: {
+            labels: dados.map(x => x.data),
+            datasets: [{
+                data: dados.map(x => x.totalValor),
+                backgroundColor: '#FF6B35'
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } }
+            }
+        }
+    });
+}
+
+function criarGraficoPagamento(resumo) {
+
+    if (pagamentoChart) pagamentoChart.destroy();
+
+    pagamentoChart = new Chart(document.getElementById('pagamentoChart'), {
+        type: 'bar',
+        data: {
+            labels: resumo.map(x => x.tipoPagamento),
+            datasets: [{
+                data: resumo.map(x => x.totalValor),
+                backgroundColor: '#FF8E53'
+            }]
+        },
+        options: {
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        afterLabel: ctx => {
+                            const item = resumo[ctx.dataIndex];
+                            if (!item.bandeiras.length) return '';
+                            return item.bandeiras.map(b =>
+                                `${b.bandeira}: R$ ${b.totalValor.toLocaleString('pt-BR')}`
+                            );
+                        }
+                    }
+                },
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+function voltar() {
+    dashboard.style.display = 'none';
+    selectionScreen.style.display = 'block';
+}
+
+window.onload = () => {
+    const hoje = new Date().toISOString().split('T')[0];
+    dataInicial.value = hoje;
+    dataFinal.value = hoje;
+};
+</script>
+
+</body>
+</html>
