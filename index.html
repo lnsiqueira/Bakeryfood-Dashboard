@@ -346,11 +346,12 @@ function criarDashboard(dados, filialNome, di, df) {
 
     criarGraficoVendas(dados.evolucaoDiaria);
     criarGraficoPagamento(dados.resumoPorPagamento);
-    carregarGraficoMovimentoHora(filialId, di, df);
+    //carregarGraficoMovimentoHora(filialId, di, df);
 }
 
 
 async function carregarGraficoMovimentoHora(filialId, di, df) {
+    
     const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
     const dados = await fetch(url).then(r => r.json());
 
