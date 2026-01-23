@@ -270,9 +270,10 @@ const filiais = {
     "Guarulhos": "1768504329886"
 };
 
-let vendasChart, pagamentoChart;
+let vendasChart, pagamentoChart, movimentoHoraChart;
 
 async function carregarDashboard() {
+    console.log('btnCarregar');
     const btn = document.getElementById('btnCarregar');
     const filialNome = unidade.value;
     const filialId = filiais[filialNome];
@@ -336,9 +337,11 @@ function criarDashboard(dados, filialNome, di, df) {
                 <h3>Pagamento</h3>
                 <div class="chart-wrapper"><canvas id="pagamentoChart"></canvas></div>
             </div>
-            <div class="chart-card" style="grid-column: 1 / -1;">
+           <div class="chart-card">
                 <h3>Horários de Maior Movimentação</h3>
-                <canvas id="movimentoHoraChart"></canvas>
+                <div class="chart-wrapper">
+                    <canvas id="movimentoHoraChart"></canvas>
+                </div>
             </div>
 
         </div>
@@ -346,12 +349,14 @@ function criarDashboard(dados, filialNome, di, df) {
 
     criarGraficoVendas(dados.evolucaoDiaria);
     criarGraficoPagamento(dados.resumoPorPagamento);
-    //carregarGraficoMovimentoHora(filialId, di, df);
+    carregarGraficoMovimentoHora(filialNome, di, df);
 }
 
 
-async function carregarGraficoMovimentoHora(filialId, di, df) {
-    
+async function carregarGraficoMovimentoHora(filialNome, di, df) {
+    console.log('carregarGraficoMovimentoHora');
+    const filialId = filiais[filialNome];
+     console.log(filialId);
     const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
     const dados = await fetch(url).then(r => r.json());
 
