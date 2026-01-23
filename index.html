@@ -349,7 +349,10 @@ function criarGraficoVendas(dados) {
     vendasChart = new Chart(vendasChartEl = document.getElementById('vendasChart'), {
         type: 'bar',
         data: {
-            labels: dados.map(x => x.data),
+          labels: dados.map(x => {
+                const d = new Date(x.data);
+                return d.toLocaleDateString('pt-BR');
+            }),
             datasets: [{
                 data: dados.map(x => x.totalValor),
                 backgroundColor: '#FF6B35'
