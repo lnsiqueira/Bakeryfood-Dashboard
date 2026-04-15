@@ -282,6 +282,9 @@ let autoRefreshInterval;
 let ultimaConsulta = null;
 let contextoAtual = null; // guarda filial, datas etc
 
+let ultimoTotalClientes = 0;
+let audioNovaVenda = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+
 async function carregarDashboard() {
     console.log('btnCarregar');
     const btn = document.getElementById('btnCarregar');
@@ -305,6 +308,7 @@ async function carregarDashboard() {
 
         const res = await fetch(url);
         const dados = await res.json();
+        ultimoTotalClientes = dados.resumoGeral.totalRegistros;
 
         criarDashboard(dados, filialNome, di, df);
 
@@ -353,6 +357,14 @@ async function atualizarDashboard(primeiraCarga = false) {
       selectionScreen.style.display = 'none';
       dashboard.style.display = 'block';
     } else {
+    const novoTotalClientes = resResumo.resumoGeral.totalRegistros;
+
+    if (novoTotalClientes > ultimoTotalClientes) {
+        tocarSomNovaVenda();
+    }
+
+    ultimoTotalClientes = novoTotalClientes;
+
       atualizarTotais(resResumo.resumoGeral);
       atualizarGraficoVendas(resResumo.evolucaoDiaria);
       atualizarGraficoPagamento(resResumo.resumoPorPagamento);
@@ -361,6 +373,15 @@ async function atualizarDashboard(primeiraCarga = false) {
   } catch (e) {
     console.error(e);
   }
+}
+
+function tocarSomNovaVenda() {
+    try {
+        audioNovaVenda.currentTime = 0;
+        audioNovaVenda.play();
+    } catch (e) {
+        console.log("Som bloqueado pelo navegador");
+    }
 }
 
 function criarDashboard(dados, filialNome, di, df) {
