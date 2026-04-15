@@ -209,7 +209,10 @@ label {
         <p class="company-text">
             A <strong>Bakery Food</strong> é referência em soluções para panificação,
             confeitaria e food service, levando inovação e qualidade ao varejo alimentar.
+
         </p>
+         <p class="company-text"> Version 1.0</p>
+       
     </div>
 
     <div class="card selection-screen" id="selectionScreen">
@@ -291,6 +294,7 @@ async function carregarDashboard() {
         alert('Preencha todos os campos');
         return;
     }
+    contextoAtual = { filialNome, di, df };
 
     try {
         btn.classList.add('loading');
@@ -498,8 +502,72 @@ function criarGraficoPagamento(resumo) {
     });
 }
 
+function atualizarTotais(resumo) {
+    const cards = document.querySelectorAll('.total-value');
+
+    if (cards.length < 3) return;
+
+    cards[0].innerText =
+        `R$ ${resumo.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+    cards[1].innerText = resumo.totalRegistros;
+
+    cards[2].innerText =
+        `R$ ${resumo.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+}
+
+function atualizarGraficoVendas(dados) {
+    if (!vendasChart) return;
+
+    vendasChart.data.labels = dados.map(x => {
+        const d = new Date(x.data);
+        return d.toLocaleDateString('pt-BR');
+    });
+
+    vendasChart.data.datasets[0].data = dados.map(x => x.totalValor);
+
+    vendasChart.update();
+}
+
+// =============================
+// ATUALIZA gráfico pagamento
+// =============================
+function atualizarGraficoPagamento(resumo) {
+    if (!pagamentoChart) return;
+
+    pagamentoChart.data.labels = resumo.map(x => x.tipoPagamento);
+    pagamentoChart.data.datasets[0].data = resumo.map(x => x.totalValor);
+
+    pagamentoChart.update();
+}
+
+// =============================
+// ATUALIZA gráfico movimento/hora
+// =============================
+function atualizarGraficoMovimentoHoraComDados(dados) {
+    if (!movimentoHoraChart) return;
+
+    const labels = dados.map(x =>
+        `${x.hora.toString().padStart(2, '0')}:00`
+    );
+
+    const valores = dados.map(x => x.totalRegistros);
+    const pico = valores.indexOf(Math.max(...valores));
+
+    movimentoHoraChart.data.labels = labels;
+    movimentoHoraChart.data.datasets[0].data = valores;
+    movimentoHoraChart.data.datasets[0].pointRadius =
+        valores.map((_, i) => i === pico ? 7 : 4);
+
+    movimentoHoraChart.update();
+}
+
 
 function voltar() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
     dashboard.style.display = 'none';
     selectionScreen.style.display = 'block';
 }
