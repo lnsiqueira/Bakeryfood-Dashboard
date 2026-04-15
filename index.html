@@ -275,6 +275,9 @@ const filiais = {
 };
 
 let vendasChart, pagamentoChart, movimentoHoraChart;
+let autoRefreshInterval;
+let ultimaConsulta = null;
+let contextoAtual = null; // guarda filial, datas etc
 
 async function carregarDashboard() {
     console.log('btnCarregar');
@@ -294,6 +297,7 @@ async function carregarDashboard() {
         btn.innerText = 'Carregando...';
 
         const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+        //const url = `http://localhost:5277/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
 
         const res = await fetch(url);
         const dados = await res.json();
@@ -302,6 +306,8 @@ async function carregarDashboard() {
 
         selectionScreen.style.display = 'none';
         dashboard.style.display = 'block';
+        // inicia atualização automática (a cada 15s)
+        iniciarAutoRefresh();
 
     } catch (e) {
         alert('Erro ao carregar dashboard');
@@ -310,6 +316,47 @@ async function carregarDashboard() {
         btn.classList.remove('loading');
         btn.innerText = 'Carregar Dashboard';
     }
+}
+
+function iniciarAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
+    autoRefreshInterval = setInterval(() => {
+        if (contextoAtual) {
+            atualizarDashboard();
+        }
+    }, 15000); // 15 segundos (pode mudar)
+}
+
+async function atualizarDashboard(primeiraCarga = false) {
+  try {
+    const { filialNome, di, df } = contextoAtual;
+    const filialId = filiais[filialNome];
+
+    const urlResumo = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+    //const urlResumo = `http://localhost:5277/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+
+    const urlHora = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+    //const urlHora = `http://localhost:5277/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+
+    const [resResumo, resHora] = await Promise.all([
+      fetch(urlResumo).then(r => r.json()),
+      fetch(urlHora).then(r => r.json())
+    ]);
+
+    if (primeiraCarga) {
+      criarDashboard(resResumo, filialNome, di, df);
+      selectionScreen.style.display = 'none';
+      dashboard.style.display = 'block';
+    } else {
+      atualizarTotais(resResumo.resumoGeral);
+      atualizarGraficoVendas(resResumo.evolucaoDiaria);
+      atualizarGraficoPagamento(resResumo.resumoPorPagamento);
+      atualizarGraficoMovimentoHoraComDados(resHora);
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 function criarDashboard(dados, filialNome, di, df) {
@@ -361,7 +408,9 @@ async function carregarGraficoMovimentoHora(filialNome, di, df) {
     console.log('carregarGraficoMovimentoHora');
     const filialId = filiais[filialNome];
      console.log(filialId);
-    const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+     const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+    //const url = `http://localhost:5277/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+
     const dados = await fetch(url).then(r => r.json());
 
     const labels = dados.map(x => `${x.hora.toString().padStart(2,'0')}:00`);
