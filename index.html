@@ -211,7 +211,7 @@ label {
             confeitaria e food service, levando inovação e qualidade ao varejo alimentar.
 
         </p>
-         <p class="company-text"> Version 1.0</p>
+         <p class="company-text"> Version 1.1</p>
        
     </div>
 
@@ -254,6 +254,10 @@ label {
 
 <div class="dashboard" id="dashboard">
     <button class="back-btn" onclick="voltar()">⬅ Voltar</button>
+
+    <button class="btn-primary" style="max-width:220px; margin-bottom:20px;" onclick="ativarModoTV()">
+        📺 Modo TV
+    </button>
 
     <div class="header">
         <h1>Dona Deola</h1>
@@ -592,6 +596,42 @@ function voltar() {
     dashboard.style.display = 'none';
     selectionScreen.style.display = 'block';
 }
+
+function ativarModoTV() {
+    const dashboard = document.getElementById('dashboard');
+
+    if (!document.fullscreenElement) {
+        dashboard.requestFullscreen()
+            .then(() => {
+                document.body.style.padding = '10px';
+
+                // esconde botões
+                const backBtn = document.querySelector('.back-btn');
+                if (backBtn) backBtn.style.display = 'none';
+
+                const tvBtn = document.querySelector('[onclick=\"ativarModoTV()\"]');
+                if (tvBtn) tvBtn.innerText = '❌ Sair do Modo TV';
+            })
+            .catch(err => {
+                alert('Erro ao ativar tela cheia');
+                console.error(err);
+            });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            document.body.style.padding = '20px';
+
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) backBtn.style.display = 'inline-block';
+
+            const tvBtn = document.querySelector('[onclick="ativarModoTV()"]');
+            if (tvBtn) tvBtn.innerText = '📺 Modo TV';
+        }
+    });
 
 window.onload = () => {
     const hoje = new Date().toISOString().split('T')[0];
