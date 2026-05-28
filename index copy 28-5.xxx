@@ -4,7 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Dashboard de Vendas - Dona Deola</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 :root {
     --primary: #FF6B35;
@@ -28,12 +30,14 @@ body {
     padding: 20px;
 }
 
+/* ====== CONTAINERS ====== */
 .selection-container,
 .dashboard {
     max-width: 1200px;
     margin: auto;
 }
 
+/* ====== CARD BASE ====== */
 .card {
     background: #fff;
     border-radius: var(--card-radius);
@@ -42,6 +46,7 @@ body {
     margin-bottom: 30px;
 }
 
+/* ====== INTRO ====== */
 .company-intro {
     text-align: center;
 }
@@ -57,6 +62,7 @@ body {
     line-height: 1.6;
 }
 
+/* ====== FORM ====== */
 .selection-screen h2 {
     text-align: center;
     margin-bottom: 25px;
@@ -111,14 +117,15 @@ label {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) rotate(0deg);
+    transform: translate(-50%, -50%);
     animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+    to { transform: rotate(360deg) translate(-50%, -50%); }
 }
 
+/* ====== DASHBOARD ====== */
 .dashboard {
     display: none;
 }
@@ -145,6 +152,7 @@ label {
     color: var(--muted);
 }
 
+/* ====== TOTAIS ====== */
 .totals-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -167,6 +175,7 @@ label {
     margin: 10px 0;
 }
 
+/* ====== CHARTS ====== */
 .charts-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
@@ -188,18 +197,6 @@ label {
 .chart-wrapper {
     height: 340px;
 }
-
-/* Badge "Todas as Filiais" */
-.badge-todas {
-    display: inline-block;
-    background: linear-gradient(135deg, var(--primary), var(--primary-soft));
-    color: #fff;
-    font-size: 0.75rem;
-    padding: 3px 10px;
-    border-radius: 20px;
-    margin-left: 10px;
-    vertical-align: middle;
-}
 </style>
 </head>
 
@@ -212,8 +209,10 @@ label {
         <p class="company-text">
             A <strong>Bakery Food</strong> é referência em soluções para panificação,
             confeitaria e food service, levando inovação e qualidade ao varejo alimentar.
+
         </p>
-        <p class="company-text">Version 1.2</p>
+         <p class="company-text"> Version 1.1</p>
+       
     </div>
 
     <div class="card selection-screen" id="selectionScreen">
@@ -223,7 +222,6 @@ label {
             <label>Unidade</label>
             <select id="unidade" class="form-control">
                 <option value="">Selecione</option>
-                <option>✅ Todas as Filiais</option>
                 <option>Lapa</option>
                 <option>Granja Viana</option>
                 <option>Einstein</option>
@@ -285,140 +283,44 @@ const filiais = {
     "Itau": "1779222052935"
 };
 
-const BASE_URL = 'https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas';
-
 let vendasChart, pagamentoChart, movimentoHoraChart;
 let autoRefreshInterval;
+let ultimaConsulta = null;
+let contextoAtual = null; // guarda filial, datas etc
+
 let ultimoTotalClientes = 0;
-let contextoAtual = null;
 let audioNovaVenda = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
 
-// =============================
-// HELPERS
-// =============================
-function isTodasFiliais(nome) {
-    return nome === '✅ Todas as Filiais';
-}
-
-function urlResumo(filialId, di, df) {
-    return `${BASE_URL}/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
-}
-
-function urlHora(filialId, di, df) {
-    return `${BASE_URL}/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
-}
-
-// =============================
-// CONSOLIDAÇÃO: TODAS AS FILIAIS
-// =============================
-async function carregarTodasFiliais(di, df) {
-    const nomes = Object.keys(filiais);
-
-    const resultados = await Promise.all(
-        nomes.map(nome =>
-            fetch(urlResumo(filiais[nome], di, df))
-                .then(r => r.json())
-                .catch(() => null)
-        )
-    );
-
-    // Soma resumo geral
-    const resumoGeral = resultados.reduce((acc, r) => {
-        if (!r) return acc;
-        acc.totalValor     += r.resumoGeral.totalValor;
-        acc.totalRegistros += r.resumoGeral.totalRegistros;
-        return acc;
-    }, { totalValor: 0, totalRegistros: 0, ticketMedio: 0 });
-
-    resumoGeral.ticketMedio = resumoGeral.totalRegistros > 0
-        ? resumoGeral.totalValor / resumoGeral.totalRegistros
-        : 0;
-
-    // Agrupa evolução diária
-    const evolucaoMap = {};
-    resultados.forEach(r => {
-        if (!r) return;
-        r.evolucaoDiaria.forEach(d => {
-            evolucaoMap[d.data] = (evolucaoMap[d.data] || 0) + d.totalValor;
-        });
-    });
-    const evolucaoDiaria = Object.entries(evolucaoMap)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([data, totalValor]) => ({ data, totalValor }));
-
-    // Agrupa pagamentos por tipo
-    const pagMap = {};
-    resultados.forEach(r => {
-        if (!r) return;
-        r.resumoPorPagamento.forEach(p => {
-            if (!pagMap[p.tipoPagamento]) {
-                pagMap[p.tipoPagamento] = { tipoPagamento: p.tipoPagamento, totalValor: 0, bandeiras: [] };
-            }
-            pagMap[p.tipoPagamento].totalValor += p.totalValor;
-        });
-    });
-    const resumoPorPagamento = Object.values(pagMap)
-        .sort((a, b) => b.totalValor - a.totalValor);
-
-    return { resumoGeral, evolucaoDiaria, resumoPorPagamento };
-}
-
-async function carregarTodasFiliaisHora(di, df) {
-    const nomes = Object.keys(filiais);
-
-    const resultados = await Promise.all(
-        nomes.map(nome =>
-            fetch(urlHora(filiais[nome], di, df))
-                .then(r => r.json())
-                .catch(() => [])
-        )
-    );
-
-    const horaMap = {};
-    resultados.forEach(arr => {
-        arr.forEach(h => {
-            horaMap[h.hora] = (horaMap[h.hora] || 0) + h.totalRegistros;
-        });
-    });
-
-    return Object.entries(horaMap)
-        .sort(([a], [b]) => Number(a) - Number(b))
-        .map(([hora, totalRegistros]) => ({ hora: Number(hora), totalRegistros }));
-}
-
-// =============================
-// CARREGAR DASHBOARD (botão)
-// =============================
 async function carregarDashboard() {
+    console.log('btnCarregar');
     const btn = document.getElementById('btnCarregar');
     const filialNome = unidade.value;
+    const filialId = filiais[filialNome];
     const di = dataInicial.value;
     const df = dataFinal.value;
 
-    if (!filialNome || !di || !df) {
+    if (!filialId || !di || !df) {
         alert('Preencha todos os campos');
         return;
     }
-
     contextoAtual = { filialNome, di, df };
 
     try {
         btn.classList.add('loading');
-        btn.innerText = '';
+        btn.innerText = 'Carregando...';
 
-        let dados;
-        if (isTodasFiliais(filialNome)) {
-            dados = await carregarTodasFiliais(di, df);
-        } else {
-            const filialId = filiais[filialNome];
-            dados = await fetch(urlResumo(filialId, di, df)).then(r => r.json());
-        }
+        const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+        //const url = `http://localhost:5277/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
 
+        const res = await fetch(url);
+        const dados = await res.json();
         ultimoTotalClientes = dados.resumoGeral.totalRegistros;
+
         criarDashboard(dados, filialNome, di, df);
 
         selectionScreen.style.display = 'none';
         dashboard.style.display = 'block';
+        // inicia atualização automática (a cada 15s)
         iniciarAutoRefresh();
 
     } catch (e) {
@@ -430,47 +332,53 @@ async function carregarDashboard() {
     }
 }
 
-// =============================
-// AUTO REFRESH
-// =============================
 function iniciarAutoRefresh() {
     if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
     autoRefreshInterval = setInterval(() => {
-        if (contextoAtual) atualizarDashboard();
-    }, 15000);
+        if (contextoAtual) {
+            atualizarDashboard();
+        }
+    }, 15000); // 15 segundos (pode mudar)
 }
 
-async function atualizarDashboard() {
-    try {
-        const { filialNome, di, df } = contextoAtual;
+async function atualizarDashboard(primeiraCarga = false) {
+  try {
+    const { filialNome, di, df } = contextoAtual;
+    const filialId = filiais[filialNome];
 
-        let resResumo, resHora;
+    const urlResumo = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+    //const urlResumo = `http://localhost:5277/api/Vendas/ListarResumoVendasPorTipoPagamento?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
 
-        if (isTodasFiliais(filialNome)) {
-            [resResumo, resHora] = await Promise.all([
-                carregarTodasFiliais(di, df),
-                carregarTodasFiliaisHora(di, df)
-            ]);
-        } else {
-            const filialId = filiais[filialNome];
-            [resResumo, resHora] = await Promise.all([
-                fetch(urlResumo(filialId, di, df)).then(r => r.json()),
-                fetch(urlHora(filialId, di, df)).then(r => r.json())
-            ]);
-        }
+    const urlHora = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+    //const urlHora = `http://localhost:5277/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
 
-        const novoTotal = resResumo.resumoGeral.totalRegistros;
-        if (novoTotal > ultimoTotalClientes) tocarSomNovaVenda();
-        ultimoTotalClientes = novoTotal;
+    const [resResumo, resHora] = await Promise.all([
+      fetch(urlResumo).then(r => r.json()),
+      fetch(urlHora).then(r => r.json())
+    ]);
 
-        atualizarTotais(resResumo.resumoGeral);
-        atualizarGraficoVendas(resResumo.evolucaoDiaria);
-        atualizarGraficoPagamento(resResumo.resumoPorPagamento);
-        atualizarGraficoMovimentoHoraComDados(resHora);
+    if (primeiraCarga) {
+      criarDashboard(resResumo, filialNome, di, df);
+      selectionScreen.style.display = 'none';
+      dashboard.style.display = 'block';
+    } else {
+    const novoTotalClientes = resResumo.resumoGeral.totalRegistros;
 
-    } catch (e) {
-        console.error(e);
+    if (novoTotalClientes > ultimoTotalClientes) {
+        tocarSomNovaVenda();
     }
+
+    ultimoTotalClientes = novoTotalClientes;
+
+      atualizarTotais(resResumo.resumoGeral);
+      atualizarGraficoVendas(resResumo.evolucaoDiaria);
+      atualizarGraficoPagamento(resResumo.resumoPorPagamento);
+      atualizarGraficoMovimentoHoraComDados(resHora);
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 function tocarSomNovaVenda() {
@@ -482,29 +390,22 @@ function tocarSomNovaVenda() {
     }
 }
 
-// =============================
-// CRIAR DASHBOARD (HTML + Gráficos)
-// =============================
 function criarDashboard(dados, filialNome, di, df) {
-    const labelFilial = isTodasFiliais(filialNome)
-        ? `Todas as Filiais <span class="badge-todas">CONSOLIDADO</span>`
-        : filialNome;
-
-    periodoSelecionado.innerHTML = `Período: ${di} a ${df} | Unidade: ${labelFilial}`;
+    periodoSelecionado.innerText = `Período: ${di} a ${df} | Unidade: ${filialNome}`;
 
     dashboardContent.innerHTML = `
         <div class="totals-grid">
             <div class="total-box">
                 <div>Total Geral</div>
-                <div class="total-value" id="tv-total">R$ ${dados.resumoGeral.totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+                <div class="total-value">R$ ${dados.resumoGeral.totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
             </div>
             <div class="total-box">
                 <div>Clientes</div>
-                <div class="total-value" id="tv-clientes">${dados.resumoGeral.totalRegistros}</div>
+                <div class="total-value">${dados.resumoGeral.totalRegistros}</div>
             </div>
             <div class="total-box">
                 <div>Ticket Médio</div>
-                <div class="total-value" id="tv-ticket">R$ ${dados.resumoGeral.ticketMedio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+                <div class="total-value">R$ ${dados.resumoGeral.ticketMedio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
             </div>
         </div>
 
@@ -513,14 +414,18 @@ function criarDashboard(dados, filialNome, di, df) {
                 <h3>Evolução das Vendas</h3>
                 <div class="chart-wrapper"><canvas id="vendasChart"></canvas></div>
             </div>
+
             <div class="chart-card">
                 <h3>Pagamento</h3>
                 <div class="chart-wrapper"><canvas id="pagamentoChart"></canvas></div>
             </div>
-            <div class="chart-card">
+           <div class="chart-card">
                 <h3>Horários de Maior Movimentação</h3>
-                <div class="chart-wrapper"><canvas id="movimentoHoraChart"></canvas></div>
+                <div class="chart-wrapper">
+                    <canvas id="movimentoHoraChart"></canvas>
+                </div>
             </div>
+
         </div>
     `;
 
@@ -529,26 +434,19 @@ function criarDashboard(dados, filialNome, di, df) {
     carregarGraficoMovimentoHora(filialNome, di, df);
 }
 
-// =============================
-// GRÁFICO: MOVIMENTO POR HORA
-// =============================
+
 async function carregarGraficoMovimentoHora(filialNome, di, df) {
-    let dados;
+    console.log('carregarGraficoMovimentoHora');
+    const filialId = filiais[filialNome];
+     console.log(filialId);
+     const url = `https://webapi-uteis-ezf9f5gaaghcgzah.brazilsouth-01.azurewebsites.net/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
+    //const url = `http://localhost:5277/api/Vendas/ResumoMovimentoPorHora?filialId=${filialId}&dtInicio=${di}&dtFim=${df}`;
 
-    if (isTodasFiliais(filialNome)) {
-        dados = await carregarTodasFiliaisHora(di, df);
-    } else {
-        const filialId = filiais[filialNome];
-        dados = await fetch(urlHora(filialId, di, df)).then(r => r.json());
-    }
+    const dados = await fetch(url).then(r => r.json());
 
-    atualizarGraficoMovimentoHoraComDados(dados);
-}
-
-function atualizarGraficoMovimentoHoraComDados(dados) {
-    const labels  = dados.map(x => `${x.hora.toString().padStart(2,'0')}:00`);
+    const labels = dados.map(x => `${x.hora.toString().padStart(2,'0')}:00`);
     const valores = dados.map(x => x.totalRegistros);
-    const pico    = valores.indexOf(Math.max(...valores));
+    const pico = valores.indexOf(Math.max(...valores));
 
     if (movimentoHoraChart) movimentoHoraChart.destroy();
 
@@ -572,16 +470,16 @@ function atualizarGraficoMovimentoHoraComDados(dados) {
     });
 }
 
-// =============================
-// GRÁFICO: VENDAS
-// =============================
 function criarGraficoVendas(dados) {
     if (vendasChart) vendasChart.destroy();
 
-    vendasChart = new Chart(document.getElementById('vendasChart'), {
+    vendasChart = new Chart(vendasChartEl = document.getElementById('vendasChart'), {
         type: 'bar',
         data: {
-            labels: dados.map(x => new Date(x.data).toLocaleDateString('pt-BR')),
+          labels: dados.map(x => {
+                const d = new Date(x.data);
+                return d.toLocaleDateString('pt-BR');
+            }),
             datasets: [{
                 data: dados.map(x => x.totalValor),
                 backgroundColor: '#FF6B35'
@@ -591,24 +489,16 @@ function criarGraficoVendas(dados) {
             plugins: { legend: { display: false } },
             scales: {
                 y: {
-                    ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') }
+                    ticks: {
+                        callback: v => 'R$ ' + v.toLocaleString('pt-BR')
+                    }
                 }
             }
         }
     });
 }
-
-function atualizarGraficoVendas(dados) {
-    if (!vendasChart) return;
-    vendasChart.data.labels = dados.map(x => new Date(x.data).toLocaleDateString('pt-BR'));
-    vendasChart.data.datasets[0].data = dados.map(x => x.totalValor);
-    vendasChart.update();
-}
-
-// =============================
-// GRÁFICO: PAGAMENTO
-// =============================
 function criarGraficoPagamento(resumo) {
+
     if (pagamentoChart) pagamentoChart.destroy();
 
     pagamentoChart = new Chart(document.getElementById('pagamentoChart'), {
@@ -626,7 +516,7 @@ function criarGraficoPagamento(resumo) {
                     callbacks: {
                         afterLabel: ctx => {
                             const item = resumo[ctx.dataIndex];
-                            if (!item.bandeiras || !item.bandeiras.length) return '';
+                            if (!item.bandeiras.length) return '';
                             return item.bandeiras.map(b =>
                                 `${b.bandeira}: R$ ${b.totalValor.toLocaleString('pt-BR')}`
                             );
@@ -639,29 +529,67 @@ function criarGraficoPagamento(resumo) {
     });
 }
 
+function atualizarTotais(resumo) {
+    const cards = document.querySelectorAll('.total-value');
+
+    if (cards.length < 3) return;
+
+    cards[0].innerText =
+        `R$ ${resumo.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+    cards[1].innerText = resumo.totalRegistros;
+
+    cards[2].innerText =
+        `R$ ${resumo.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+}
+
+function atualizarGraficoVendas(dados) {
+    if (!vendasChart) return;
+
+    vendasChart.data.labels = dados.map(x => {
+        const d = new Date(x.data);
+        return d.toLocaleDateString('pt-BR');
+    });
+
+    vendasChart.data.datasets[0].data = dados.map(x => x.totalValor);
+
+    vendasChart.update();
+}
+
+// =============================
+// ATUALIZA gráfico pagamento
+// =============================
 function atualizarGraficoPagamento(resumo) {
     if (!pagamentoChart) return;
+
     pagamentoChart.data.labels = resumo.map(x => x.tipoPagamento);
     pagamentoChart.data.datasets[0].data = resumo.map(x => x.totalValor);
+
     pagamentoChart.update();
 }
 
 // =============================
-// ATUALIZA TOTAIS
+// ATUALIZA gráfico movimento/hora
 // =============================
-function atualizarTotais(resumo) {
-    const tvTotal   = document.getElementById('tv-total');
-    const tvClientes = document.getElementById('tv-clientes');
-    const tvTicket  = document.getElementById('tv-ticket');
+function atualizarGraficoMovimentoHoraComDados(dados) {
+    if (!movimentoHoraChart) return;
 
-    if (tvTotal)    tvTotal.innerText    = `R$ ${resumo.totalValor.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
-    if (tvClientes) tvClientes.innerText = resumo.totalRegistros;
-    if (tvTicket)   tvTicket.innerText   = `R$ ${resumo.ticketMedio.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+    const labels = dados.map(x =>
+        `${x.hora.toString().padStart(2, '0')}:00`
+    );
+
+    const valores = dados.map(x => x.totalRegistros);
+    const pico = valores.indexOf(Math.max(...valores));
+
+    movimentoHoraChart.data.labels = labels;
+    movimentoHoraChart.data.datasets[0].data = valores;
+    movimentoHoraChart.data.datasets[0].pointRadius =
+        valores.map((_, i) => i === pico ? 7 : 4);
+
+    movimentoHoraChart.update();
 }
 
-// =============================
-// VOLTAR / MODO TV
-// =============================
+
 function voltar() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
@@ -672,13 +600,18 @@ function voltar() {
 }
 
 function ativarModoTV() {
+    const dashboard = document.getElementById('dashboard');
+
     if (!document.fullscreenElement) {
-        document.getElementById('dashboard').requestFullscreen()
+        dashboard.requestFullscreen()
             .then(() => {
                 document.body.style.padding = '10px';
+
+                // esconde botões
                 const backBtn = document.querySelector('.back-btn');
                 if (backBtn) backBtn.style.display = 'none';
-                const tvBtn = document.querySelector('[onclick="ativarModoTV()"]');
+
+                const tvBtn = document.querySelector('[onclick=\"ativarModoTV()\"]');
                 if (tvBtn) tvBtn.innerText = '❌ Sair do Modo TV';
             })
             .catch(err => {
@@ -691,14 +624,16 @@ function ativarModoTV() {
 }
 
 document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-        document.body.style.padding = '20px';
-        const backBtn = document.querySelector('.back-btn');
-        if (backBtn) backBtn.style.display = 'inline-block';
-        const tvBtn = document.querySelector('[onclick="ativarModoTV()"]');
-        if (tvBtn) tvBtn.innerText = '📺 Modo TV';
-    }
-});
+        if (!document.fullscreenElement) {
+            document.body.style.padding = '20px';
+
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) backBtn.style.display = 'inline-block';
+
+            const tvBtn = document.querySelector('[onclick="ativarModoTV()"]');
+            if (tvBtn) tvBtn.innerText = '📺 Modo TV';
+        }
+    });
 
 window.onload = () => {
     const hoje = new Date().toISOString().split('T')[0];
